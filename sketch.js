@@ -9,10 +9,15 @@ let food = []; // Petits points à manger
 let obstacles = [];
 let deadlyObstacles = [];
 
-// Score
+// Score et Niveaux
 let score = 0;
+let currentLevel = 1;
+let maxLevel = 5;
+let pointsPerLevel = 10; // Points nécessaires pour passer au niveau suivant
 let gameOver = false;
 let gameWon = false;
+let levelTransition = false;
+let transitionTimer = 0;
 
 // Mode
 let mode = "game"; // "game", "text"
@@ -48,19 +53,89 @@ function setup() {
   snake = new Snake(width / 2, height / 2 + 100, 3);
   snake.maxSpeed = snakeSpeedSlider.value();
 
-  // Créer les obstacles normaux (plus petits)
-  for (let i = 0; i < 5; i++) {
+  // Initialiser le niveau 1
+  initLevel(currentLevel);
+}
+
+// Fonction pour initialiser un niveau avec difficulté progressive
+function initLevel(level) {
+  // Nettoyer les obstacles et nourriture existants
+  obstacles = [];
+  deadlyObstacles = [];
+  food = [];
+
+  // Configuration selon le niveau
+  let config = getLevelConfig(level);
+
+  // Créer les obstacles normaux (verts)
+  for (let i = 0; i < config.normalObstacles; i++) {
     let obs = new Obstacle(random(100, width - 100), random(100, height - 100),
                           random(20, 35), color(100, 255, 100), false);
     obstacles.push(obs);
   }
 
-  // Créer les obstacles mortels (plus petits)
-  createDeadlyObstacles(nbObstaclesSlider.value());
+  // Créer les obstacles mortels (rouges)
+  for (let i = 0; i < config.deadlyObstacles; i++) {
+    let obs = new Obstacle(random(100, width - 100), random(100, height - 100),
+                          random(15, 25), color(255, 50, 50), true);
+    deadlyObstacles.push(obs);
+  }
 
-  // Créer les premiers points de nourriture
-  for (let i = 0; i < 15; i++) {
+  // Créer la nourriture
+  for (let i = 0; i < config.foodCount; i++) {
     spawnFood();
+  }
+
+  // Ajuster la vitesse du snake selon le niveau
+  snake.maxSpeed = config.snakeSpeed;
+  snakeSpeedSlider.value(config.snakeSpeed);
+}
+
+// Configuration de difficulté par niveau
+function getLevelConfig(level) {
+  switch(level) {
+    case 1:
+      return {
+        normalObstacles: 3,
+        deadlyObstacles: 3,
+        foodCount: 15,
+        minFoodCount: 10,
+        snakeSpeed: 4
+      };
+    case 2:
+      return {
+        normalObstacles: 4,
+        deadlyObstacles: 5,
+        foodCount: 12,
+        minFoodCount: 8,
+        snakeSpeed: 4.5
+      };
+    case 3:
+      return {
+        normalObstacles: 5,
+        deadlyObstacles: 7,
+        foodCount: 10,
+        minFoodCount: 7,
+        snakeSpeed: 5
+      };
+    case 4:
+      return {
+        normalObstacles: 6,
+        deadlyObstacles: 10,
+        foodCount: 8,
+        minFoodCount: 6,
+        snakeSpeed: 5.5
+      };
+    case 5:
+      return {
+        normalObstacles: 7,
+        deadlyObstacles: 13,
+        foodCount: 7,
+        minFoodCount: 5,
+        snakeSpeed: 6
+      };
+    default:
+      return getLevelConfig(1);
   }
 }
 
@@ -294,8 +369,9 @@ function draw() {
       }
     }
 
-    // Maintenir au moins 10 points de nourriture
-    while (food.length < 10) {
+    // Maintenir un minimum de points de nourriture selon le niveau
+    let config = getLevelConfig(currentLevel);
+    while (food.length < config.minFoodCount) {
       spawnFood();
     }
 
@@ -314,10 +390,30 @@ function draw() {
       }
     });
 
-    // Condition de victoire: 30 points collectés
-    if (score >= 30) {
+    // Vérifier passage au niveau suivant
+    if (score >= currentLevel * pointsPerLevel && currentLevel < maxLevel) {
+      levelTransition = true;
+      transitionTimer = 0;
+    }
+
+    // Condition de victoire: finir le niveau 5
+    if (currentLevel === maxLevel && score >= maxLevel * pointsPerLevel) {
       gameWon = true;
     }
+  }
+
+  // === TRANSITION DE NIVEAU ===
+  if (levelTransition) {
+    transitionTimer++;
+    displayLevelTransition();
+
+    // Passer automatiquement après 2 secondes OU si le joueur appuie sur ENTER
+    if (transitionTimer > 120) { // 2 secondes à 60 FPS
+      currentLevel++;
+      levelTransition = false;
+      initLevel(currentLevel);
+    }
+    return;
   }
 
   // === MODE TEXT ===
@@ -358,17 +454,68 @@ function displayInfo() {
   fill(0, 255, 255);
   text(`Mode: ${modeText}`, width - 20, 20);
 
+  // Afficher le niveau actuel
+  fill(255, 100, 255);
+  textSize(20);
+  textStyle(BOLD);
+  text(`LEVEL ${currentLevel} / ${maxLevel}`, width - 20, 50);
+
+  // Score avec objectif du niveau
   fill(255, 215, 0);
-  text(`Score: ${score} / 30`, width - 20, 50);
+  textSize(18);
+  textStyle(NORMAL);
+  let targetScore = currentLevel * pointsPerLevel;
+  text(`Score: ${score} / ${targetScore}`, width - 20, 80);
 
   fill(255);
-  text(`Snake Length: ${snake.segments.length}`, width - 20, 80);
-  text(`Food: ${food.length}`, width - 20, 110);
+  text(`Snake Length: ${snake.segments.length}`, width - 20, 110);
+  text(`Food: ${food.length}`, width - 20, 140);
 
   if (Snake.debug) {
     fill(0, 255, 0);
-    text('MODE DEBUG ACTIVÉ', width - 20, 140);
+    text('MODE DEBUG ACTIVÉ', width - 20, 170);
   }
+  pop();
+}
+
+function displayLevelTransition() {
+  // Overlay semi-transparent
+  background(0, 0, 0, 200);
+
+  push();
+  textAlign(CENTER, CENTER);
+
+  // Animation de pulsation
+  let pulse = sin(transitionTimer * 0.1) * 10;
+
+  textSize(80 + pulse);
+  fill(100, 255, 100);
+  text(`LEVEL ${currentLevel} COMPLETE!`, width / 2, height / 2 - 100);
+
+  textSize(50);
+  fill(255, 215, 0);
+  text(`→ LEVEL ${currentLevel + 1} ←`, width / 2, height / 2 - 20);
+
+  textSize(30);
+  fill(255);
+  text(`Score: ${score}`, width / 2, height / 2 + 40);
+
+  // Afficher la configuration du prochain niveau
+  let nextConfig = getLevelConfig(currentLevel + 1);
+  textSize(20);
+  fill(255, 100, 100);
+  text(`Obstacles Mortels: ${nextConfig.deadlyObstacles}`, width / 2, height / 2 + 90);
+  fill(100, 255, 255);
+  text(`Vitesse: ${nextConfig.snakeSpeed}`, width / 2, height / 2 + 120);
+
+  // Instruction pour passer au niveau suivant
+  textSize(24);
+  fill(255, 255, 0);
+  // Animation de clignotement
+  let alpha = map(sin(transitionTimer * 0.2), -1, 1, 100, 255);
+  fill(255, 255, 0, alpha);
+  text('Appuyez sur ENTER pour continuer', width / 2, height / 2 + 170);
+
   pop();
 }
 
@@ -379,11 +526,15 @@ function displayGameOver() {
   textAlign(CENTER, CENTER);
   textSize(80);
   fill(255, 0, 0);
-  text('GAME OVER', width / 2, height / 2 - 50);
+  text('GAME OVER', width / 2, height / 2 - 80);
+
+  textSize(40);
+  fill(255, 100, 100);
+  text(`Level Atteint: ${currentLevel}`, width / 2, height / 2 - 10);
 
   textSize(40);
   fill(255);
-  text(`Score Final: ${score}`, width / 2, height / 2 + 50);
+  text(`Score Final: ${score}`, width / 2, height / 2 + 40);
 
   textSize(24);
   fill(255, 255, 0);
@@ -396,18 +547,31 @@ function displayGameWon() {
 
   push();
   textAlign(CENTER, CENTER);
+
+  // Animation arc-en-ciel
+  let hue = (frameCount * 2) % 360;
+  colorMode(HSB);
+  fill(hue, 80, 100);
   textSize(80);
-  fill(0, 255, 0);
-  text('VICTOIRE !', width / 2, height / 2 - 50);
+  text('🎉 VICTOIRE ! 🎉', width / 2, height / 2 - 100);
+
+  colorMode(RGB);
+  textSize(50);
+  fill(255, 215, 0);
+  text(`TOUS LES ${maxLevel} NIVEAUX COMPLÉTÉS !`, width / 2, height / 2 - 20);
 
   textSize(40);
+  fill(100, 255, 100);
+  text(`Score Final: ${score}`, width / 2, height / 2 + 40);
+
+  textSize(30);
   fill(255);
-  text(`Score: ${score} / 30`, width / 2, height / 2 + 50);
+  text(`Longueur du Snake: ${snake.segments.length}`, width / 2, height / 2 + 90);
 
   textSize(24);
   fill(255, 255, 0);
-  text('Vous avez collecté tous les points !', width / 2, height / 2 + 120);
-  text('Appuyez sur R pour recommencer', width / 2, height / 2 + 160);
+  text('Vous êtes un maître du Snake !', width / 2, height / 2 + 140);
+  text('Appuyez sur R pour recommencer', width / 2, height / 2 + 180);
   pop();
 }
 
@@ -432,33 +596,31 @@ function keyPressed() {
       console.log("Mode GAME activé");
     }
   }
+
+  // Passer au niveau suivant avec ENTER pendant la transition
+  if (keyCode === ENTER && levelTransition) {
+    currentLevel++;
+    levelTransition = false;
+    initLevel(currentLevel);
+    console.log(`Passage au niveau ${currentLevel}`);
+  }
 }
 
 function resetGame() {
   score = 0;
+  currentLevel = 1;
   gameOver = false;
   gameWon = false;
+  levelTransition = false;
+  transitionTimer = 0;
   mode = "game";
 
   // Réinitialiser le snake - commence avec 3 segments
   snake = new Snake(width / 2, height / 2 + 100, 3);
   snake.maxSpeed = snakeSpeedSlider.value();
 
-  // Réinitialiser les obstacles
-  obstacles = [];
-  for (let i = 0; i < 5; i++) {
-    let obs = new Obstacle(random(100, width - 100), random(100, height - 100),
-                          random(20, 35), color(100, 255, 100), false);
-    obstacles.push(obs);
-  }
+  // Réinitialiser au niveau 1
+  initLevel(currentLevel);
 
-  createDeadlyObstacles(nbObstaclesSlider.value());
-
-  // Réinitialiser la nourriture
-  food = [];
-  for (let i = 0; i < 15; i++) {
-    spawnFood();
-  }
-
-  console.log("Jeu réinitialisé !");
+  console.log("Jeu réinitialisé - Niveau 1 !");
 }
