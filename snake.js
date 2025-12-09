@@ -1,69 +1,13 @@
 // Classe Snake avec tous les comportements de steering
 // Wander, Separation, Flee, Follow, Path Following, Boundaries
 
-class Segment {
-  static debug = false;
-
+// Segment hérite maintenant de Vehicle pour réutiliser les comportements de base
+class Segment extends Vehicle {
   constructor(x, y) {
-    this.pos = createVector(x, y);
-    this.vel = createVector(0, 0);
-    this.acc = createVector(0, 0);
+    super(x, y, 12);
     this.maxSpeed = 5;
     this.maxForce = 0.5;
-    this.r = 12;
     this.color = color(100, 255, 150);
-
-    // Trainée derrière le segment
-    this.path = [];
-    this.pathMaxLength = 30;
-  }
-
-  // Comportement arrive
-  arrive(target, slowingDistance = 100) {
-    let desired = p5.Vector.sub(target, this.pos);
-    let distance = desired.mag();
-    let speed = this.maxSpeed;
-
-    if (distance < slowingDistance) {
-      speed = map(distance, 0, slowingDistance, 0, this.maxSpeed);
-    }
-
-    desired.setMag(speed);
-    let steer = p5.Vector.sub(desired, this.vel);
-    steer.limit(this.maxForce);
-
-    return steer;
-  }
-
-  // Comportement seek
-  seek(target) {
-    let desired = p5.Vector.sub(target, this.pos);
-    desired.setMag(this.maxSpeed);
-    let steer = p5.Vector.sub(desired, this.vel);
-    steer.limit(this.maxForce);
-    return steer;
-  }
-
-  // Comportement flee
-  flee(target) {
-    return this.seek(target).mult(-1);
-  }
-
-  applyForce(force) {
-    this.acc.add(force);
-  }
-
-  update() {
-    this.vel.add(this.acc);
-    this.vel.limit(this.maxSpeed);
-    this.pos.add(this.vel);
-    this.acc.mult(0);
-
-    // Ajouter la position actuelle à la trainée
-    this.path.push(this.pos.copy());
-    if (this.path.length > this.pathMaxLength) {
-      this.path.shift();
-    }
   }
 
   show() {
@@ -92,7 +36,7 @@ class Segment {
     noStroke();
     circle(this.pos.x, this.pos.y, this.r * 0.8);
 
-    if (Segment.debug) {
+    if (Vehicle.debug) {
       noFill();
       stroke(255, 255, 0);
       circle(this.pos.x, this.pos.y, this.r * 3);
@@ -131,6 +75,20 @@ class Snake {
     this.distanceCercle = 60;
     this.wanderRadius = 35;
     this.displaceRange = 0.25;
+
+    // Limites de la zone de jeu (par défaut = canvas complet)
+    this.boundariesX = 0;
+    this.boundariesY = 0;
+    this.boundariesWidth = width;
+    this.boundariesHeight = height;
+  }
+
+  // Définir les limites de la zone de jeu
+  setBoundaries(x, y, w, h) {
+    this.boundariesX = x;
+    this.boundariesY = y;
+    this.boundariesWidth = w;
+    this.boundariesHeight = h;
   }
 
   // Faire grandir le snake d'un segment
@@ -198,31 +156,31 @@ class Snake {
     return force;
   }
 
-  // ÉVITEMENT D'OBSTACLES - Tous les segments évitent
+  // ÉVITEMENT D'OBSTACLES - Avec calcul de distance progressive
   avoidObstacles(obstacles) {
     let head = this.segments[0];
-    let distanceAhead = 60;
+    let distanceAhead = 80; // Distance de prédiction augmentée
 
+    // Vecteurs de prédiction devant le snake
     let ahead = head.vel.copy();
-    ahead.mult(distanceAhead);
-
-    let ahead2 = head.vel.copy();
-    ahead2.mult(distanceAhead * 0.5);
+    ahead.setMag(distanceAhead);
+    let ahead2 = ahead.copy().mult(0.5);
 
     let pointAuBoutDeAhead = p5.Vector.add(head.pos, ahead);
     let pointAuBoutDeAhead2 = p5.Vector.add(head.pos, ahead2);
 
-    // Trouver l'obstacle le plus proche en tenant compte de TOUS les segments
+    // Trouver l'obstacle le plus proche et sa distance
     let obstacleLePlusProche = null;
     let distanceMin = Infinity;
+    let pointLePlusProche = null;
 
     for (let obstacle of obstacles) {
-      // Vérifier la distance avec la tête ET les segments
+      // Calculer les distances aux trois points de prédiction
       let d1 = pointAuBoutDeAhead.dist(obstacle.pos);
       let d2 = pointAuBoutDeAhead2.dist(obstacle.pos);
       let d3 = head.pos.dist(obstacle.pos);
 
-      // Vérifier aussi la proximité de tous les segments
+      // Vérifier aussi la distance de tous les segments
       let minSegmentDist = Infinity;
       for (let segment of this.segments) {
         let segDist = segment.pos.dist(obstacle.pos);
@@ -231,11 +189,21 @@ class Snake {
         }
       }
 
+      // Prendre la distance minimale
       let d = min(d1, d2, d3, minSegmentDist);
 
       if (d < distanceMin) {
         distanceMin = d;
         obstacleLePlusProche = obstacle;
+
+        // Déterminer quel point est le plus proche
+        if (d1 <= d2 && d1 <= d3 && d1 <= minSegmentDist) {
+          pointLePlusProche = pointAuBoutDeAhead;
+        } else if (d2 <= d1 && d2 <= d3 && d2 <= minSegmentDist) {
+          pointLePlusProche = pointAuBoutDeAhead2;
+        } else {
+          pointLePlusProche = head.pos;
+        }
       }
     }
 
@@ -243,37 +211,59 @@ class Snake {
       return createVector(0, 0);
     }
 
-    // Choisir le meilleur point
-    let d1 = pointAuBoutDeAhead.dist(obstacleLePlusProche.pos);
-    let d2 = pointAuBoutDeAhead2.dist(obstacleLePlusProche.pos);
-    let d3 = head.pos.dist(obstacleLePlusProche.pos);
-
-    let pointUtilise;
-    let distance;
-    if (d1 < d2 && d1 < d3) {
-      pointUtilise = pointAuBoutDeAhead;
-      distance = d1;
-    } else if (d2 < d1 && d2 < d3) {
-      pointUtilise = pointAuBoutDeAhead2;
-      distance = d2;
-    } else {
-      pointUtilise = head.pos;
-      distance = d3;
-    }
+    // Calculer la zone d'évitement progressive
+    let avoidanceRadius = obstacleLePlusProche.r + head.r + 60; // Zone large d'évitement
+    let dangerRadius = obstacleLePlusProche.r + head.r + 20;    // Zone de danger immédiat
 
     let force = createVector(0, 0);
-    // Augmenter le rayon de collision pour une détection plus précoce
-    let collisionRadius = obstacleLePlusProche.r + head.r + 10;
 
-    if (distance < collisionRadius) {
-      force = p5.Vector.sub(pointUtilise, obstacleLePlusProche.pos);
-      force.setMag(this.maxForce);
+    // Si dans la zone d'évitement, calculer la force basée sur la distance
+    if (distanceMin < avoidanceRadius) {
+      // Vecteur d'évitement - s'éloigner de l'obstacle
+      force = p5.Vector.sub(pointLePlusProche, obstacleLePlusProche.pos);
+      force.normalize();
 
+      // Force inversement proportionnelle à la distance
+      // Plus on est proche, plus la force est forte
+      let strength;
+      if (distanceMin < dangerRadius) {
+        // Zone de danger - force maximale
+        strength = map(distanceMin, 0, dangerRadius, this.maxForce * 3, this.maxForce * 1.5);
+      } else {
+        // Zone d'évitement normale - force progressive
+        strength = map(distanceMin, dangerRadius, avoidanceRadius, this.maxForce * 1.5, this.maxForce * 0.3);
+      }
+
+      force.setMag(strength);
+
+      // Mode debug - visualiser les zones d'évitement
       if (Snake.debug) {
         push();
-        stroke(255, 150, 0);
+
+        // Zone d'évitement (cyan)
+        noFill();
+        stroke(0, 255, 255, 100);
         strokeWeight(2);
-        line(obstacleLePlusProche.pos.x, obstacleLePlusProche.pos.y, pointUtilise.x, pointUtilise.y);
+        circle(obstacleLePlusProche.pos.x, obstacleLePlusProche.pos.y, avoidanceRadius * 2);
+
+        // Zone de danger (orange)
+        stroke(255, 150, 0, 150);
+        strokeWeight(2);
+        circle(obstacleLePlusProche.pos.x, obstacleLePlusProche.pos.y, dangerRadius * 2);
+
+        // Ligne de force d'évitement
+        stroke(255, 0, 0);
+        strokeWeight(3);
+        line(head.pos.x, head.pos.y,
+             head.pos.x + force.x * 10, head.pos.y + force.y * 10);
+
+        // Distance text
+        fill(255, 255, 0);
+        noStroke();
+        textSize(12);
+        text(`Dist: ${distanceMin.toFixed(0)}`,
+             obstacleLePlusProche.pos.x, obstacleLePlusProche.pos.y - obstacleLePlusProche.r - 10);
+
         pop();
       }
     }
@@ -332,7 +322,8 @@ class Snake {
     head.maxForce = this.maxForce;
     head.update();
 
-    // Suivre le chemin (path following) - chaque segment suit le précédent avec un comportement plus serré
+    // Suivre le chemin (path following) - chaque segment suit le précédent
+    // IMPORTANT: On utilise une contrainte rigide pour maintenir la forme du snake
     for (let i = 1; i < this.segments.length; i++) {
       let segment = this.segments[i];
       let target = this.segments[i - 1];
@@ -341,72 +332,84 @@ class Snake {
       let desired = p5.Vector.sub(target.pos, segment.pos);
       let distance = desired.mag();
 
-      // Utiliser arrive pour un suivi plus fluide et serré
-      let arriveForce = segment.arrive(target.pos, this.segmentDistance * 2);
-      segment.applyForce(arriveForce);
+      // NOUVELLE APPROCHE: Contrainte rigide AVANT le mouvement
+      // Maintenir la distance exacte entre les segments
+      if (distance > 0) {
+        // Calculer la position idéale pour ce segment
+        let direction = desired.copy();
+        direction.normalize();
+        direction.mult(this.segmentDistance);
 
-      // Si trop loin du segment précédent, forcer le rapprochement
-      if (distance > this.segmentDistance * 1.5) {
-        let urgentForce = desired.copy();
-        urgentForce.setMag(this.maxSpeed * 1.5);
-        let steer = p5.Vector.sub(urgentForce, segment.vel);
-        steer.limit(this.maxForce * 2);
-        segment.applyForce(steer);
+        // Position cible = position du segment précédent - direction * segmentDistance
+        let idealPos = p5.Vector.sub(target.pos, direction);
+
+        // Interpoler vers la position idéale (LERP pour un mouvement fluide)
+        segment.pos.lerp(idealPos, 0.5);
       }
 
-      segment.maxSpeed = this.maxSpeed * 1.2; // Segments légèrement plus rapides
-      segment.maxForce = this.maxForce * 1.5; // Plus réactifs
+      // Ajouter un léger mouvement basé sur arrive seulement si nécessaire
+      if (distance > this.segmentDistance * 1.2) {
+        let arriveForce = segment.arrive(target.pos, this.segmentDistance * 2);
+        arriveForce.mult(0.3); // Force réduite car la contrainte rigide fait le travail principal
+        segment.applyForce(arriveForce);
+      }
+
+      segment.maxSpeed = this.maxSpeed * 1.1;
+      segment.maxForce = this.maxForce * 1.2;
       segment.update();
-
-      // Contraindre la distance exacte (méthode de contrainte rigide)
-      let finalDist = p5.Vector.dist(segment.pos, target.pos);
-      if (finalDist > this.segmentDistance) {
-        let direction = p5.Vector.sub(target.pos, segment.pos);
-        direction.setMag(finalDist - this.segmentDistance);
-        segment.pos.add(direction);
-      }
     }
   }
 
-  // BOUNDARIES - Rebondir sur les bords
+  // WRAPPING - Le snake passe d'un bord à l'autre (wrapping edges)
   boundaries() {
-    let head = this.segments[0];
-    let d = 50; // Distance des bords pour commencer à rebondir
+    // Appliquer le wrapping à TOUS les segments
+    for (let segment of this.segments) {
+      // Wrapping horizontal
+      if (segment.pos.x > this.boundariesX + this.boundariesWidth) {
+        segment.pos.x = this.boundariesX;
+      } else if (segment.pos.x < this.boundariesX) {
+        segment.pos.x = this.boundariesX + this.boundariesWidth;
+      }
 
-    let desired = null;
-
-    if (head.pos.x < d) {
-      desired = createVector(this.maxSpeed, head.vel.y);
-    } else if (head.pos.x > width - d) {
-      desired = createVector(-this.maxSpeed, head.vel.y);
-    }
-
-    if (head.pos.y < d) {
-      desired = createVector(head.vel.x, this.maxSpeed);
-    } else if (head.pos.y > height - d) {
-      desired = createVector(head.vel.x, -this.maxSpeed);
-    }
-
-    if (desired !== null) {
-      desired.normalize();
-      desired.mult(this.maxSpeed);
-      let steer = p5.Vector.sub(desired, head.vel);
-      steer.limit(this.maxForce * 2); // Force plus forte pour les bords
-      head.applyForce(steer);
-
-      if (Snake.debug) {
-        push();
-        stroke(255, 0, 0);
-        strokeWeight(3);
-        noFill();
-        rect(d, d, width - d * 2, height - d * 2);
-        pop();
+      // Wrapping vertical
+      if (segment.pos.y > this.boundariesY + this.boundariesHeight) {
+        segment.pos.y = this.boundariesY;
+      } else if (segment.pos.y < this.boundariesY) {
+        segment.pos.y = this.boundariesY + this.boundariesHeight;
       }
     }
 
-    // Limiter strictement la position
-    head.pos.x = constrain(head.pos.x, 10, width - 10);
-    head.pos.y = constrain(head.pos.y, 10, height - 10);
+    // Mode debug: afficher les limites de wrapping
+    if (Snake.debug) {
+      push();
+      stroke(0, 255, 255);
+      strokeWeight(2);
+      noFill();
+      rect(this.boundariesX, this.boundariesY,
+           this.boundariesWidth, this.boundariesHeight);
+
+      // Ajouter des flèches pour indiquer le wrapping
+      fill(0, 255, 255, 150);
+      noStroke();
+      textSize(20);
+      textAlign(CENTER);
+      text('←→', this.boundariesX + this.boundariesWidth / 2, this.boundariesY - 10);
+      text('←→', this.boundariesX + this.boundariesWidth / 2, this.boundariesY + this.boundariesHeight + 20);
+
+      push();
+      translate(this.boundariesX - 10, this.boundariesY + this.boundariesHeight / 2);
+      rotate(-HALF_PI);
+      text('←→', 0, 0);
+      pop();
+
+      push();
+      translate(this.boundariesX + this.boundariesWidth + 10, this.boundariesY + this.boundariesHeight / 2);
+      rotate(-HALF_PI);
+      text('←→', 0, 0);
+      pop();
+
+      pop();
+    }
   }
 
   show() {
@@ -465,6 +468,9 @@ class Snake {
   }
 }
 
-// Assigner le debug aux segments aussi
+// Synchroniser le debug avec la classe de base Vehicle
 Snake.debug = false;
-Segment.debug = Snake.debug;
+Object.defineProperty(Snake, 'debug', {
+  get() { return Vehicle.debug; },
+  set(value) { Vehicle.debug = value; }
+});
