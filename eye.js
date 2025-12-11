@@ -1,10 +1,11 @@
-// Classe Eye - L'oeil que le joueur contrôle avec la souris
+// Classe Eye - Hérite de Vehicle
+// L'oeil que le joueur contrôle avec la souris
 // Le snake suit cet oeil pour aller chercher les pièces
 
-class Eye {
+class Eye extends Vehicle {
   constructor(x, y) {
-    this.pos = createVector(x, y);
-    this.r = 16; // Rayon de l'oeil (réduit)
+    super(x, y);
+    this.r = 16; // Rayon de l'oeil
 
     // Animation de clignement
     this.blinkTimer = 0;
@@ -23,6 +24,7 @@ class Eye {
     this.targetLookAt = target;
   }
 
+  // Override de la méthode show() héritée de Vehicle
   show() {
     push();
 

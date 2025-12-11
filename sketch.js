@@ -35,6 +35,21 @@ let textPoints = [];
 // Image de fond
 let bgImage;
 
+// Zones d'interface
+let gameArea = {
+  x: 20,
+  y: 20,
+  width: 0,
+  height: 0
+};
+
+let controlPanel = {
+  x: 0,
+  y: 20,
+  width: 300,
+  height: 0
+};
+
 function preload() {
   // Charger l'image de fond
   bgImage = loadImage('snake.jfif');
@@ -43,14 +58,20 @@ function preload() {
 function setup() {
   createCanvas(windowWidth, windowHeight);
 
+  // Calculer les dimensions des zones
+  controlPanel.x = width - controlPanel.width - 20;
+  controlPanel.height = height - 40;
+  gameArea.width = controlPanel.x - gameArea.x - 20;
+  gameArea.height = height - 40;
+
   // Créer les sliders
   createSliders();
 
-  // Créer le eye (cible contrôlée par la souris) - leader
-  eye = new Eye(width / 2, height / 2);
+  // Créer le eye (cible contrôlée par la souris) - leader dans la zone de jeu
+  eye = new Eye(gameArea.x + gameArea.width / 2, gameArea.y + gameArea.height / 2);
 
-  // Créer le snake - commence avec 3 segments
-  snake = new Snake(width / 2, height / 2 + 100, 3);
+  // Créer le snake - commence avec 3 segments dans la zone de jeu
+  snake = new Snake(gameArea.x + gameArea.width / 2, gameArea.y + gameArea.height / 2 + 100, 3);
   snake.maxSpeed = snakeSpeedSlider.value();
 
   // Initialiser le niveau 1
@@ -67,17 +88,21 @@ function initLevel(level) {
   // Configuration selon le niveau
   let config = getLevelConfig(level);
 
-  // Créer les obstacles normaux (verts)
+  // Créer les obstacles normaux (verts) - taille réduite dans la zone de jeu
   for (let i = 0; i < config.normalObstacles; i++) {
-    let obs = new Obstacle(random(100, width - 100), random(100, height - 100),
-                          random(20, 35), color(100, 255, 100), false);
+    let obs = new Obstacle(
+      random(gameArea.x + 60, gameArea.x + gameArea.width - 60),
+      random(gameArea.y + 60, gameArea.y + gameArea.height - 60),
+      random(12, 20), color(100, 255, 100), false);
     obstacles.push(obs);
   }
 
-  // Créer les obstacles mortels (rouges)
+  // Créer les obstacles mortels (rouges) - taille réduite dans la zone de jeu
   for (let i = 0; i < config.deadlyObstacles; i++) {
-    let obs = new Obstacle(random(100, width - 100), random(100, height - 100),
-                          random(15, 25), color(255, 50, 50), true);
+    let obs = new Obstacle(
+      random(gameArea.x + 60, gameArea.x + gameArea.width - 60),
+      random(gameArea.y + 60, gameArea.y + gameArea.height - 60),
+      random(10, 16), color(255, 50, 50), true);
     deadlyObstacles.push(obs);
   }
 
@@ -140,46 +165,57 @@ function getLevelConfig(level) {
 }
 
 function createSliders() {
-  let yPos = 10;
-  let xPos = 10;
+  // Calculer la position du panneau de contrôle
+  let panelX = width - 300 - 20;
+  let yPos = 50;
+  let xPos = panelX + 20;
+
+  // Titre du panneau
+  createP('🎮 CONTRÔLES').position(xPos, 30).style('color', '#FFD700').style('font-size', '20px').style('font-weight', 'bold');
 
   // Slider distance entre segments
-  createP('Distance Segments:').position(xPos, yPos).style('color', 'white');
+  createP('Distance Segments:').position(xPos, yPos).style('color', 'white').style('font-size', '12px');
   segmentDistanceSlider = createSlider(10, 30, 15, 2);
-  segmentDistanceSlider.position(xPos + 200, yPos + 15);
-  segmentDistanceSlider.size(150);
+  segmentDistanceSlider.position(xPos, yPos + 20);
+  segmentDistanceSlider.size(260);
 
-  yPos += 50;
+  yPos += 60;
 
   // Slider poids évitement
-  createP('Poids Évitement:').position(xPos, yPos).style('color', 'lime');
+  createP('Poids Évitement:').position(xPos, yPos).style('color', 'lime').style('font-size', '12px');
   avoidWeightSlider = createSlider(0, 5, 2.5, 0.1);
-  avoidWeightSlider.position(xPos + 200, yPos + 15);
-  avoidWeightSlider.size(150);
+  avoidWeightSlider.position(xPos, yPos + 20);
+  avoidWeightSlider.size(260);
 
-  yPos += 50;
+  yPos += 60;
 
   // Slider vitesse snake
-  createP('Vitesse Snake:').position(xPos, yPos).style('color', 'cyan');
+  createP('Vitesse Snake:').position(xPos, yPos).style('color', 'cyan').style('font-size', '12px');
   snakeSpeedSlider = createSlider(2, 8, 4, 0.5);
-  snakeSpeedSlider.position(xPos + 200, yPos + 15);
-  snakeSpeedSlider.size(150);
+  snakeSpeedSlider.position(xPos, yPos + 20);
+  snakeSpeedSlider.size(260);
 
-  yPos += 50;
+  yPos += 60;
 
   // Slider nombre d'obstacles mortels
-  createP('Obstacles Mortels:').position(xPos, yPos).style('color', 'red');
+  createP('Obstacles Mortels:').position(xPos, yPos).style('color', 'red').style('font-size', '12px');
   nbObstaclesSlider = createSlider(3, 15, 5, 1);
-  nbObstaclesSlider.position(xPos + 200, yPos + 15);
-  nbObstaclesSlider.size(150);
+  nbObstaclesSlider.position(xPos, yPos + 20);
+  nbObstaclesSlider.size(260);
   nbObstaclesSlider.input(adjustDeadlyObstacles);
 
-  yPos += 70;
+  yPos += 80;
 
   // Instructions
-  createP('Contrôlez l\'oeil avec la souris').position(xPos, yPos).style('color', 'gold');
-  createP('T = Mode Texte | D = Debug | R = Reset').position(xPos, yPos + 25).style('color', 'cyan');
-  createP('Évitez les obstacles ROUGES !').position(xPos, yPos + 50).style('color', 'red');
+  createP('⌨️ COMMANDES').position(xPos, yPos).style('color', '#FFD700').style('font-size', '16px').style('font-weight', 'bold');
+  yPos += 30;
+  createP('🖱️ Souris = Contrôler l\'oeil').position(xPos, yPos).style('color', 'gold').style('font-size', '11px');
+  createP('T = Mode Texte').position(xPos, yPos + 25).style('color', 'cyan').style('font-size', '11px');
+  createP('D = Debug').position(xPos, yPos + 45).style('color', 'cyan').style('font-size', '11px');
+  createP('R = Reset').position(xPos, yPos + 65).style('color', 'cyan').style('font-size', '11px');
+  createP('ENTER = Niveau suivant').position(xPos, yPos + 85).style('color', 'lime').style('font-size', '11px');
+  yPos += 120;
+  createP('⚠️ Évitez les obstacles ROUGES !').position(xPos, yPos).style('color', 'red').style('font-size', '12px').style('font-weight', 'bold');
 }
 
 function adjustDeadlyObstacles() {
@@ -189,22 +225,49 @@ function adjustDeadlyObstacles() {
 function createDeadlyObstacles(count) {
   deadlyObstacles = [];
   for (let i = 0; i < count; i++) {
-    let obs = new Obstacle(random(100, width - 100), random(100, height - 100),
-                          random(15, 25), color(255, 50, 50), true);
+    let validPosition = false;
+    let x, y;
+    let attempts = 0;
+    let maxAttempts = 100;
+
+    // Chercher une position qui ne chevauche pas le snake
+    while (!validPosition && attempts < maxAttempts) {
+      x = random(gameArea.x + 60, gameArea.x + gameArea.width - 60);
+      y = random(gameArea.y + 60, gameArea.y + gameArea.height - 60);
+      validPosition = true;
+
+      // Vérifier la distance avec tous les segments du snake
+      if (snake && snake.segments) {
+        for (let segment of snake.segments) {
+          let d = dist(x, y, segment.pos.x, segment.pos.y);
+          // Distance de sécurité : rayon obstacle + rayon segment + marge de 50px
+          let minDistance = 16 + segment.r + 50;
+          if (d < minDistance) {
+            validPosition = false;
+            break;
+          }
+        }
+      }
+
+      attempts++;
+    }
+
+    let obs = new Obstacle(x, y, random(10, 16), color(255, 50, 50), true);
     deadlyObstacles.push(obs);
   }
 }
 
 function spawnFood() {
-  // Générer un point de nourriture qui ne chevauche pas les obstacles
+  // Générer un point de nourriture qui ne chevauche pas les obstacles - UNIQUEMENT dans la zone de jeu
   let maxAttempts = 50;
   let attempts = 0;
   let validPosition = false;
   let x, y;
 
   while (!validPosition && attempts < maxAttempts) {
-    x = random(80, width - 80);
-    y = random(80, height - 80);
+    // Générer TOUJOURS dans la zone de jeu
+    x = random(gameArea.x + 60, gameArea.x + gameArea.width - 60);
+    y = random(gameArea.y + 60, gameArea.y + gameArea.height - 60);
     validPosition = true;
 
     // Vérifier la distance avec tous les obstacles
@@ -222,10 +285,10 @@ function spawnFood() {
     attempts++;
   }
 
-  // Si on n'a pas trouvé de position valide, utiliser une position aléatoire
+  // Si on n'a pas trouvé de position valide, utiliser quand même une position dans la zone de jeu
   if (!validPosition) {
-    x = random(100, width - 100);
-    y = random(100, height - 100);
+    x = random(gameArea.x + 60, gameArea.x + gameArea.width - 60);
+    y = random(gameArea.y + 60, gameArea.y + gameArea.height - 60);
   }
 
   let foodItem = new Food(x, y);
@@ -233,11 +296,13 @@ function spawnFood() {
 }
 
 function createTextPoints() {
-  // Générer les points pour "SNAKE"
+  // Générer les points pour "SNAKE" dans la zone de jeu
   textPoints = [];
   let txt = 'SNAKE';
-  let startX = width / 2 - 250;
-  let y = height / 2;
+  let centerX = gameArea.x + gameArea.width / 2;
+  let centerY = gameArea.y + gameArea.height / 2;
+  let startX = centerX - 250;
+  let y = centerY;
   let spacing = 100;
 
   let letterShapes = {
@@ -289,16 +354,26 @@ function createTextPoints() {
 }
 
 function draw() {
-  // Fond avec image
+  // Fond noir pour tout l'écran
+  background(0);
+
+  // Image de fond UNIQUEMENT dans la zone de jeu
   if (bgImage) {
     push();
     tint(255, 180); // Transparence pour voir les éléments
-    image(bgImage, 0, 0, width, height);
+    image(bgImage, gameArea.x, gameArea.y, gameArea.width, gameArea.height);
     pop();
   }
 
-  // Overlay semi-transparent
-  background(0, 0, 0, 30);
+  // Overlay semi-transparent sur la zone de jeu
+  push();
+  fill(0, 0, 0, 30);
+  noStroke();
+  rect(gameArea.x, gameArea.y, gameArea.width, gameArea.height);
+  pop();
+
+  // Dessiner les cadres de l'interface
+  drawInterfaceFrames();
 
   // Afficher Game Over ou Game Won
   if (gameOver) {
@@ -317,13 +392,19 @@ function draw() {
 
   // === MODE GAME ===
   if (mode === "game") {
-    // Le eye (leader) suit la souris
-    eye.pos.x = mouseX;
-    eye.pos.y = mouseY;
+    // Le eye (leader) suit la souris - contraint dans la zone de jeu
+    if (mouseX >= gameArea.x && mouseX <= gameArea.x + gameArea.width &&
+        mouseY >= gameArea.y && mouseY <= gameArea.y + gameArea.height) {
+      eye.pos.x = mouseX;
+      eye.pos.y = mouseY;
+    } else {
+      eye.pos.x = constrain(eye.pos.x, gameArea.x + 30, gameArea.x + gameArea.width - 30);
+      eye.pos.y = constrain(eye.pos.y, gameArea.y + 30, gameArea.y + gameArea.height - 30);
+    }
 
     // L'oeil regarde vers la tête du snake
-    if (snake && snake.segments.length > 0) {
-      eye.lookAt(snake.segments[0].pos);
+    if (snake) {
+      eye.lookAt(snake.pos);
     }
 
     eye.show();
@@ -336,10 +417,11 @@ function draw() {
     food.forEach(f => f.show());
 
     // Comportement du snake: suivre l'eye
-    let allObstacles = [...obstacles, ...deadlyObstacles];
+    // IMPORTANT: Le snake évite SEULEMENT les obstacles verts (normaux)
+    // Il N'évite PAS les obstacles rouges (mortels) - s'il les touche il meurt
 
     let followForce = snake.follow(eye);
-    let avoidForce = snake.avoidObstacles(allObstacles);
+    let avoidForce = snake.avoidObstacles(obstacles); // Seulement les obstacles VERTS
     let separateForce = snake.separate();
 
     followForce.mult(1.2);
@@ -351,7 +433,7 @@ function draw() {
     snake.applyForce(separateForce);
 
     snake.update();
-    snake.boundaries(); // Rebondit sur les bords
+    snake.boundaries(gameArea.x, gameArea.y, gameArea.width, gameArea.height, 50); // Rebondit sur les bords
     snake.show();
 
     // Vérifier collision avec la nourriture
@@ -428,7 +510,7 @@ function draw() {
     pop();
 
     // Le snake forme le mot "SNAKE"
-    let allSegments = snake.getSegments();
+    let allSegments = snake.getAllSegments();
     allSegments.forEach((segment, i) => {
       if (i < textPoints.length) {
         let target = createVector(textPoints[i].x, textPoints[i].y);
@@ -444,36 +526,65 @@ function draw() {
   displayInfo();
 }
 
+function drawInterfaceFrames() {
+  push();
+
+  // Cadre de la zone de jeu (bleu)
+  stroke(100, 200, 255);
+  strokeWeight(3);
+  noFill();
+  rect(gameArea.x, gameArea.y, gameArea.width, gameArea.height, 10);
+
+  // Titre de la zone de jeu
+  fill(100, 200, 255);
+  noStroke();
+  textSize(16);
+  textAlign(LEFT, TOP);
+  text('🎮 ZONE DE JEU', gameArea.x + 10, gameArea.y - 20);
+
+  // Cadre du panneau de contrôle avec fond semi-transparent (doré)
+  fill(0, 0, 0, 180);
+  stroke(255, 215, 0);
+  strokeWeight(3);
+  rect(controlPanel.x, controlPanel.y, controlPanel.width, controlPanel.height, 10);
+
+  pop();
+}
+
 function displayInfo() {
   push();
   fill(255);
   textSize(18);
-  textAlign(RIGHT, TOP);
+  textAlign(LEFT, TOP);
+
+  // Position dans la zone de jeu (coin supérieur gauche)
+  let infoX = gameArea.x + 15;
+  let infoY = gameArea.y + 15;
 
   let modeText = mode === "game" ? "GAME MODE" : "TEXT MODE";
   fill(0, 255, 255);
-  text(`Mode: ${modeText}`, width - 20, 20);
+  text(`Mode: ${modeText}`, infoX, infoY);
 
   // Afficher le niveau actuel
   fill(255, 100, 255);
   textSize(20);
   textStyle(BOLD);
-  text(`LEVEL ${currentLevel} / ${maxLevel}`, width - 20, 50);
+  text(`LEVEL ${currentLevel} / ${maxLevel}`, infoX, infoY + 30);
 
   // Score avec objectif du niveau
   fill(255, 215, 0);
   textSize(18);
   textStyle(NORMAL);
   let targetScore = currentLevel * pointsPerLevel;
-  text(`Score: ${score} / ${targetScore}`, width - 20, 80);
+  text(`Score: ${score} / ${targetScore}`, infoX, infoY + 60);
 
   fill(255);
-  text(`Snake Length: ${snake.segments.length}`, width - 20, 110);
-  text(`Food: ${food.length}`, width - 20, 140);
+  text(`Snake Length: ${1 + snake.segments.length}`, infoX, infoY + 90);
+  text(`Food: ${food.length}`, infoX, infoY + 120);
 
   if (Snake.debug) {
     fill(0, 255, 0);
-    text('MODE DEBUG ACTIVÉ', width - 20, 170);
+    text('MODE DEBUG ACTIVÉ', infoX, infoY + 150);
   }
   pop();
 }
@@ -566,7 +677,7 @@ function displayGameWon() {
 
   textSize(30);
   fill(255);
-  text(`Longueur du Snake: ${snake.segments.length}`, width / 2, height / 2 + 90);
+  text(`Longueur du Snake: ${1 + snake.segments.length}`, width / 2, height / 2 + 90);
 
   textSize(24);
   fill(255, 255, 0);
@@ -615,8 +726,8 @@ function resetGame() {
   transitionTimer = 0;
   mode = "game";
 
-  // Réinitialiser le snake - commence avec 3 segments
-  snake = new Snake(width / 2, height / 2 + 100, 3);
+  // Réinitialiser le snake - commence avec 3 segments dans la zone de jeu
+  snake = new Snake(gameArea.x + gameArea.width / 2, gameArea.y + gameArea.height / 2 + 100, 3);
   snake.maxSpeed = snakeSpeedSlider.value();
 
   // Réinitialiser au niveau 1
