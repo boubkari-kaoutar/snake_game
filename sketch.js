@@ -9,6 +9,10 @@ let food = []; // Petits points à manger
 let obstacles = [];
 let deadlyObstacles = [];
 
+// AI Snakes
+let smallSnakes = []; // Petits snakes à manger (nourriture)
+let largeSnakes = []; // Grands snakes prédateurs (à fuir)
+
 // Score et Niveaux
 let score = 0;
 let currentLevel = 1;
@@ -84,6 +88,8 @@ function initLevel(level) {
   obstacles = [];
   deadlyObstacles = [];
   food = [];
+  smallSnakes = [];
+  largeSnakes = [];
 
   // Configuration selon le niveau
   let config = getLevelConfig(level);
@@ -111,6 +117,20 @@ function initLevel(level) {
     spawnFood();
   }
 
+  // Créer les petits snakes (nourriture)
+  for (let i = 0; i < config.smallSnakes; i++) {
+    let x = random(gameArea.x + 100, gameArea.x + gameArea.width - 100);
+    let y = random(gameArea.y + 100, gameArea.y + gameArea.height - 100);
+    smallSnakes.push(new AISnake(x, y, "SMALL"));
+  }
+
+  // Créer les grands snakes (prédateurs)
+  for (let i = 0; i < config.largeSnakes; i++) {
+    let x = random(gameArea.x + 100, gameArea.x + gameArea.width - 100);
+    let y = random(gameArea.y + 100, gameArea.y + gameArea.height - 100);
+    largeSnakes.push(new AISnake(x, y, "LARGE"));
+  }
+
   // Ajuster la vitesse du snake selon le niveau
   snake.maxSpeed = config.snakeSpeed;
   snakeSpeedSlider.value(config.snakeSpeed);
@@ -125,7 +145,9 @@ function getLevelConfig(level) {
         deadlyObstacles: 3,
         foodCount: 15,
         minFoodCount: 10,
-        snakeSpeed: 4
+        snakeSpeed: 4,
+        smallSnakes: 2,    // Petits snakes à manger
+        largeSnakes: 0     // Pas de prédateurs au niveau 1
       };
     case 2:
       return {
@@ -133,7 +155,9 @@ function getLevelConfig(level) {
         deadlyObstacles: 5,
         foodCount: 12,
         minFoodCount: 8,
-        snakeSpeed: 4.5
+        snakeSpeed: 4.5,
+        smallSnakes: 3,
+        largeSnakes: 1     // 1 prédateur
       };
     case 3:
       return {
@@ -141,7 +165,9 @@ function getLevelConfig(level) {
         deadlyObstacles: 7,
         foodCount: 10,
         minFoodCount: 7,
-        snakeSpeed: 5
+        snakeSpeed: 5,
+        smallSnakes: 3,
+        largeSnakes: 2     // 2 prédateurs
       };
     case 4:
       return {
@@ -149,7 +175,9 @@ function getLevelConfig(level) {
         deadlyObstacles: 10,
         foodCount: 8,
         minFoodCount: 6,
-        snakeSpeed: 5.5
+        snakeSpeed: 5.5,
+        smallSnakes: 4,
+        largeSnakes: 2
       };
     case 5:
       return {
@@ -157,7 +185,9 @@ function getLevelConfig(level) {
         deadlyObstacles: 13,
         foodCount: 7,
         minFoodCount: 5,
-        snakeSpeed: 6
+        snakeSpeed: 6,
+        smallSnakes: 4,
+        largeSnakes: 3     // 3 prédateurs au niveau max
       };
     default:
       return getLevelConfig(1);
@@ -416,6 +446,21 @@ function draw() {
     // Dessiner les points de nourriture
     food.forEach(f => f.show());
 
+    // Update et afficher les AI snakes
+    // Petits snakes (nourriture) - ils fuient aussi les prédateurs
+    smallSnakes.forEach(s => {
+      s.applyBehaviors(snake, obstacles, gameArea, largeSnakes);
+      s.update();
+      s.show(snake);
+    });
+
+    // Grands snakes (prédateurs) - ils se séparent entre eux
+    largeSnakes.forEach(s => {
+      s.applyBehaviors(snake, obstacles, gameArea, largeSnakes);
+      s.update();
+      s.show(snake);
+    });
+
     // Comportement du snake: suivre l'eye
     // IMPORTANT: Le snake évite SEULEMENT les obstacles verts (normaux)
     // Il N'évite PAS les obstacles rouges (mortels) - s'il les touche il meurt
@@ -469,6 +514,24 @@ function draw() {
       if (snake.checkNormalObstacleCollision(obs)) {
         // Le snake ralentit temporairement quand il touche un obstacle vert
         snake.maxSpeed = max(snake.maxSpeed * 0.5, 2);
+      }
+    });
+
+    // Vérifier collision avec PETITS snakes (nourriture)
+    for (let i = smallSnakes.length - 1; i >= 0; i--) {
+      if (smallSnakes[i].checkPlayerCollision(snake)) {
+        // Manger le petit snake: +5 points et grandir
+        smallSnakes.splice(i, 1);
+        score += 5;
+        snake.grow();
+        snake.grow(); // Grandir de 2 segments
+      }
+    }
+
+    // Vérifier collision avec GRANDS snakes (prédateurs) - Game Over
+    largeSnakes.forEach(predator => {
+      if (predator.checkPlayerCollision(snake)) {
+        gameOver = true;
       }
     });
 

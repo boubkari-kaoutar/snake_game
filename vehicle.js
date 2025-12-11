@@ -55,6 +55,37 @@ class Vehicle {
     return steer;
   }
 
+  // Comportement PURSUE - Poursuivre un véhicule mobile en anticipant sa position
+  pursue(targetVehicle) {
+    // Calculer la position future de la cible
+    let distance = p5.Vector.dist(this.pos, targetVehicle.pos);
+
+    // Prédire combien de frames il faut pour atteindre la cible
+    let T = distance / this.maxSpeed;
+
+    // Calculer la position future de la cible
+    let futurePos = targetVehicle.pos.copy();
+    let futureVel = targetVehicle.vel.copy();
+    futureVel.mult(T);
+    futurePos.add(futureVel);
+
+    // Seek vers la position future
+    return this.seek(futurePos);
+  }
+
+  // Comportement EVADE - Fuir un véhicule mobile en anticipant sa position
+  evade(targetVehicle) {
+    let distance = p5.Vector.dist(this.pos, targetVehicle.pos);
+    let T = distance / this.maxSpeed;
+
+    let futurePos = targetVehicle.pos.copy();
+    let futureVel = targetVehicle.vel.copy();
+    futureVel.mult(T);
+    futurePos.add(futureVel);
+
+    return this.flee(futurePos);
+  }
+
   // Comportement WANDER - Déambulation aléatoire
   wander() {
     let wanderPoint = this.vel.copy();
