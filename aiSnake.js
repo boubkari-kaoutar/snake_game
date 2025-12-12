@@ -90,12 +90,12 @@ class AISnake extends Snake {
 
       let dToPlayer = p5.Vector.dist(this.pos, playerSnake.pos);
 
-      if (dToPlayer < 250) {
+      if (dToPlayer < 180) {
         // Poursuivre avec PURSUE (anticipe la position future du joueur)
         let pursueForce = this.pursue(playerSnake);
 
         // Plus le joueur est proche, plus la poursuite est agressive
-        let pursueMult = map(dToPlayer, 0, 250, 2.5, 1.2);
+        let pursueMult = map(dToPlayer, 0, 180, 2.5, 1.2);
         pursueForce.mult(pursueMult);
         steerForce.add(pursueForce);
 
@@ -105,7 +105,7 @@ class AISnake extends Snake {
           directSeekForce.mult(1.5);
           steerForce.add(directSeekForce);
         }
-      } else if (dToPlayer < 400) {
+      } else if (dToPlayer < 300) {
         // À moyenne distance: patrouille vers la dernière position connue
         let seekForce = this.seek(playerSnake.pos);
         seekForce.mult(0.6);
@@ -176,18 +176,18 @@ class AISnake extends Snake {
         stroke(255, 255, 0, 100);
         circle(this.pos.x, this.pos.y, 120 * 2);
       } else {
-        // Zone de poursuite agressive (250px)
+        // Zone de poursuite agressive (180px)
         stroke(255, 0, 0, 100);
-        circle(this.pos.x, this.pos.y, 250 * 2);
+        circle(this.pos.x, this.pos.y, 180 * 2);
 
-        // Zone de patrouille (400px)
+        // Zone de patrouille (300px)
         stroke(255, 150, 0, 80);
-        circle(this.pos.x, this.pos.y, 400 * 2);
+        circle(this.pos.x, this.pos.y, 350 * 2);
 
         // Ligne vers le joueur si en poursuite
         if (playerSnake) {
           let d = p5.Vector.dist(this.pos, playerSnake.pos);
-          if (d < 250) {
+          if (d < 180) {
             stroke(255, 0, 0, 150);
             strokeWeight(2);
             line(this.pos.x, this.pos.y, playerSnake.pos.x, playerSnake.pos.y);

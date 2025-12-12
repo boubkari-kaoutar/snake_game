@@ -22,6 +22,7 @@ let gameOver = false;
 let gameWon = false;
 let levelTransition = false;
 let transitionTimer = 0;
+let transitionDurationFrames = 180; // 3-second freeze (3 -> 1 countdown)
 
 // Mode
 let mode = "game"; // "game", "text"
@@ -416,6 +417,20 @@ function draw() {
     return;
   }
 
+  // === TRANSITION DE NIVEAU ===
+  if (levelTransition) {
+    transitionTimer++;
+    displayLevelTransition();
+
+    // Passer automatiquement après le compte à rebours 3 -> 1
+    if (transitionTimer >= transitionDurationFrames) {
+      currentLevel++;
+      levelTransition = false;
+      initLevel(currentLevel);
+    }
+    return;
+  }
+
   // Mise à jour des paramètres
   snake.maxSpeed = snakeSpeedSlider.value();
   snake.segmentDistance = segmentDistanceSlider.value();
@@ -547,20 +562,6 @@ function draw() {
     }
   }
 
-  // === TRANSITION DE NIVEAU ===
-  if (levelTransition) {
-    transitionTimer++;
-    displayLevelTransition();
-
-    // Passer automatiquement après 2 secondes OU si le joueur appuie sur ENTER
-    if (transitionTimer > 120) { // 2 secondes à 60 FPS
-      currentLevel++;
-      levelTransition = false;
-      initLevel(currentLevel);
-    }
-    return;
-  }
-
   // === MODE TEXT ===
   else if (mode === "text") {
     // Dessiner les points du texte
@@ -661,34 +662,31 @@ function displayLevelTransition() {
 
   // Animation de pulsation
   let pulse = sin(transitionTimer * 0.1) * 10;
+  let secondsLeft = max(1, 3 - floor(transitionTimer / 60)); // 3 -> 1
 
   textSize(80 + pulse);
   fill(100, 255, 100);
   text(`LEVEL ${currentLevel} COMPLETE!`, width / 2, height / 2 - 100);
 
-  textSize(50);
+  textSize(32);
   fill(255, 215, 0);
-  text(`→ LEVEL ${currentLevel + 1} ←`, width / 2, height / 2 - 20);
+  text(`LEVEL ${currentLevel + 1} STARTS IN`, width / 2, height / 2 - 10);
 
-  textSize(30);
+  textSize(120);
+  fill(255, 255, 0);
+  text(secondsLeft, width / 2, height / 2 + 70);
+
+  textSize(26);
   fill(255);
-  text(`Score: ${score}`, width / 2, height / 2 + 40);
+  text(`Score: ${score}`, width / 2, height / 2 + 140);
 
   // Afficher la configuration du prochain niveau
   let nextConfig = getLevelConfig(currentLevel + 1);
   textSize(20);
   fill(255, 100, 100);
-  text(`Obstacles Mortels: ${nextConfig.deadlyObstacles}`, width / 2, height / 2 + 90);
+  text(`Obstacles Mortels: ${nextConfig.deadlyObstacles}`, width / 2, height / 2 + 190);
   fill(100, 255, 255);
-  text(`Vitesse: ${nextConfig.snakeSpeed}`, width / 2, height / 2 + 120);
-
-  // Instruction pour passer au niveau suivant
-  textSize(24);
-  fill(255, 255, 0);
-  // Animation de clignotement
-  let alpha = map(sin(transitionTimer * 0.2), -1, 1, 100, 255);
-  fill(255, 255, 0, alpha);
-  text('Appuyez sur ENTER pour continuer', width / 2, height / 2 + 170);
+  text(`Vitesse: ${nextConfig.snakeSpeed}`, width / 2, height / 2 + 220);
 
   pop();
 }
@@ -773,10 +771,8 @@ function keyPressed() {
 
   // Passer au niveau suivant avec ENTER pendant la transition
   if (keyCode === ENTER && levelTransition) {
-    currentLevel++;
-    levelTransition = false;
-    initLevel(currentLevel);
-    console.log(`Passage au niveau ${currentLevel}`);
+    // Ignorer ENTER pendant la pause de transition pour conserver le gel
+    return;
   }
 }
 
