@@ -4,6 +4,7 @@
 1. Project Overview
 
 This project is an interactive 2D game built with p5.js to experiment with classic steering behaviors used in autonomous agents. Instead of steering the snake head directly, you guide a floating leader (the "eye"), so you can see how steering forces propagate through a multi-segment body. The world mixes player control, AI prey and predators, food, and obstacles that all react in real time.
+<img width="1919" height="826" alt="image" src="https://github.com/user-attachments/assets/ea765c41-2f5e-41d4-8451-8cdba4273b4f" />
 
 2. Educational Objectives
 
