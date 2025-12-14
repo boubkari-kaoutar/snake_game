@@ -235,7 +235,7 @@ function createSliders() {
   let xPos = panelX + 20;
 
   // Titre du panneau
-  createP('🎮 CONTRÔLES').position(xPos, 30).style('color', '#FFD700').style('font-size', '20px').style('font-weight', 'bold');
+  createP('🎮 CONTRÔLES').position(xPos, 10).style('color', '#FFD700').style('font-size', '20px').style('font-weight', 'bold');
 
   // Slider distance entre segments
   createP('Distance Segments:').position(xPos, yPos).style('color', 'white').style('font-size', '12px');
