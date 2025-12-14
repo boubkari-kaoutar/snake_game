@@ -7,7 +7,7 @@ This project is an interactive 2D game built with p5.js to experiment with class
 
 2. Educational Objectives
 
-- Implement and observe steering behaviors: Seek, Flee, Arrive, Wander, Pursue, Evade.
+- Implement and observe steering behaviors: Seek, Flee, Arrive, Wander, Pursue, Evade, Boundaries, Separation.
 - Study emergent motion when multiple forces blend together.
 - Explore multi-agent interactions (player snake, prey snakes, predator snakes).
 - Provide a visual, hands-on tool for learning autonomous movement in AI systems.
@@ -20,10 +20,12 @@ This project is an interactive 2D game built with p5.js to experiment with class
 - Emphasis: behavior-based movement instead of direct steering.
 
 3.2 Scoring and Progression
-- Food pellets: +1 point, grow the snake.
+- Food pellets: +1 point, grow the snake by 1 segment.
 - Small AI snakes (prey): +5 points, +2 segments; they try to evade you.
 - Five levels get progressively harder (faster snake, more predators, more deadly obstacles).
-- Win by finishing Level 5. Lose on contact with a predator or any deadly obstacle.
+- Win by finishing Level 5 (50 points total). Lose on contact with a predator or any deadly obstacle.
+- Each level requires 10 points to progress (Level 1: 0→10, Level 2: 10→20, etc.)
+- 3-second countdown transition between levels with automatic progression.
 
 4. Artificial Intelligence Design
 4.1 Steering Behavior Architecture
@@ -36,9 +38,10 @@ This project is an interactive 2D game built with p5.js to experiment with class
 - Large AI Snakes (Predators): pursue the player, avoid obstacles; create pressure and show aggressive pursuit.
 
 5. Environment and Obstacles
-- Food pellets: pulsing visuals for feedback.
-- Green obstacles: soft; slow you when touched.
+- Food pellets: pulsing visuals for feedback, spawn away from snakes.
+- Green obstacles: soft; temporarily slow you to 50% speed for 1 second when touched.
 - Red obstacles: lethal; instant game over. These reinforce awareness and tuning of avoidance behavior.
+- Predators spawn far from player (250px minimum) for fair gameplay.
 
 6. Game Modes and Debug Tools
 6.1 Special Modes
@@ -47,15 +50,22 @@ This project is an interactive 2D game built with p5.js to experiment with class
 
 7. System Architecture
 7.1 File Structure
-- index.html � loads p5.js and all game scripts.
-- sketch.js � main loop, level logic, UI, transitions, modes.
-- ehicle.js � core steering behaviors.
-- snake.js � player snake body, following, collisions.
-- iSnake.js � prey/predator AI snakes.
-- eye.js � player-controlled leader target.
-- ood.js, obstacle.js � collectibles and hazards.
-- style.css � UI and layout styling.
-- snake.jfif � background image.
+- index.html: loads p5.js and all game scripts.
+- sketch.js: main loop, level logic, UI, transitions, modes.
+- vehicle.js: core steering behaviors (base class).
+- snake.js: player snake body, following, collisions.
+- aiSnake.js: prey/predator AI snakes.
+- eye.js: player-controlled leader target.
+- food.js, obstacle.js: collectibles and hazards.
+- style.css: UI and layout styling.
+- snake.jfif: background image.
+
+7.2 Object-Oriented Architecture
+- Vehicle (base class): All steering behaviors (seek, flee, arrive, pursue, evade, wander, boundaries, separation)
+- Snake extends Vehicle: Player snake with segment management, obstacle avoidance, collision detection
+- AISnake extends Snake: AI-controlled snakes with pursuit/evasion behaviors
+- Eye extends Vehicle: Mouse-controlled leader using arrive behavior
+- Clean inheritance with super() calls and DRY principle respected
 
 8. Technical Stack
 - Language: JavaScript
@@ -65,10 +75,9 @@ This project is an interactive 2D game built with p5.js to experiment with class
 - Deployment: static web project (served locally)
 
 9. Installation and Execution
-To avoid file:// security limits, run a simple local server from snake_game/:
-- Python: python -m http.server 8000
-- Node.js: 
-px http-server .
+To avoid file:// security limits, run a simple local server from the projet/ directory:
+- Python: `python -m http.server 8000`
+- Node.js: `npx http-server .`
 Then open http://localhost:8000/index.html in your browser.
 
 10. Parameter Tuning and Experimentation
@@ -80,11 +89,13 @@ The right-hand UI panel lets you adjust in real time:
 Use these to study emergent behavior and stability.
 
 11. Learning Outcomes
-- Hands-on implementation of steering behaviors.
-- Multi-agent interaction design.
-- Behavior blending and parameter tuning.
-- AI visualization and debugging.
+- Hands-on implementation of 8 steering behaviors.
+- Multi-agent interaction design with predator-prey dynamics.
+- Behavior blending and parameter tuning in real-time.
+- AI visualization and debugging tools.
 - Game-based learning for autonomous movement.
+- Object-oriented programming with clean inheritance hierarchy.
+- Collision detection and spatial validation algorithms.
 
 12. Conclusion and Perspectives
 This project shows how classic AI movement algorithms become tangible in an interactive setting. Indirect control, varied agents, and live tuning make it both a learning lab and a playground for behavior-based AI. Possible extensions:
