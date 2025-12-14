@@ -15,6 +15,10 @@ class Snake extends Vehicle {
     this.r = 10;
     this.color = color(255, 100, 100); // Rouge pour la tête
 
+    // Gestion du ralentissement temporaire (pour collision avec obstacles verts)
+    this.slowedUntil = 0;  // Frame jusqu'à laquelle le snake est ralenti
+    this.normalMaxSpeed = 4;  // Vitesse normale de référence
+
     // Créer les segments suiveurs (composition avec Vehicle)
     this.segments = [];
     for (let i = 0; i < length; i++) {
@@ -43,6 +47,22 @@ class Snake extends Vehicle {
   // COMPORTEMENT FOLLOW - La tête suit une cible
   follow(target) {
     return this.arrive(target.pos);
+  }
+
+  // Appliquer un ralentissement temporaire (utilisé pour collision avec obstacles verts)
+  applyTemporarySlowdown(duration = 60) {
+    // Ralentir à 50% de la vitesse normale
+    this.maxSpeed = max(this.normalMaxSpeed * 0.5, 2);
+    // Définir jusqu'à quand le ralentissement est actif
+    this.slowedUntil = frameCount + duration;
+  }
+
+  // Restaurer la vitesse normale si le ralentissement est terminé
+  updateSpeed() {
+    if (frameCount > this.slowedUntil) {
+      // Le ralentissement est terminé, restaurer la vitesse normale
+      this.maxSpeed = this.normalMaxSpeed;
+    }
   }
 
   // ÉVITEMENT D'OBSTACLES - Détection depuis la tête
@@ -127,20 +147,15 @@ class Snake extends Vehicle {
   // COMPORTEMENT SEPARATION - Entre la tête et les segments
   separate() {
     let desiredSeparation = this.r * 2.5;
-    let steer = createVector(0, 0);
-    let count = 0;
 
-    for (let other of this.segments) {
-      let d = p5.Vector.dist(this.pos, other.pos);
+    // Utiliser la méthode héritée de Vehicle avec les segments
+    let steer = super.separate(this.segments, desiredSeparation);
 
-      if (d > 0 && d < desiredSeparation) {
-        let diff = p5.Vector.sub(this.pos, other.pos);
-        diff.normalize();
-        diff.div(d);
-        steer.add(diff);
-        count++;
-
-        if (Snake.debug) {
+    // Debug visuel pour les connexions de séparation
+    if (Snake.debug && steer.mag() > 0) {
+      for (let other of this.segments) {
+        let d = p5.Vector.dist(this.pos, other.pos);
+        if (d > 0 && d < desiredSeparation) {
           push();
           stroke(255, 255, 0, 100);
           strokeWeight(1);
@@ -148,13 +163,6 @@ class Snake extends Vehicle {
           pop();
         }
       }
-    }
-
-    if (count > 0) {
-      steer.div(count);
-      steer.setMag(this.maxSpeed);
-      steer.sub(this.vel);
-      steer.limit(this.maxForce);
     }
 
     return steer;
@@ -222,42 +230,28 @@ class Snake extends Vehicle {
     }
   }
 
-  // BOUNDARIES - Rebondir sur les bords de la zone de jeu
+  // BOUNDARIES - Utilise la méthode héritée de Vehicle et ajoute debug + contraintes
   boundaries(bx, by, bw, bh, d = 50) {
-    let desired = null;
+    // Utiliser la méthode héritée de Vehicle
+    let boundaryForce = super.boundaries(bx, by, bw, bh, d);
+    this.applyForce(boundaryForce);
 
-    if (this.pos.x < bx + d) {
-      desired = createVector(this.maxSpeed, this.vel.y);
-    } else if (this.pos.x > bx + bw - d) {
-      desired = createVector(-this.maxSpeed, this.vel.y);
-    }
-
-    if (this.pos.y < by + d) {
-      desired = createVector(this.vel.x, this.maxSpeed);
-    } else if (this.pos.y > by + bh - d) {
-      desired = createVector(this.vel.x, -this.maxSpeed);
-    }
-
-    if (desired !== null) {
-      desired.normalize();
-      desired.mult(this.maxSpeed);
-      let steer = p5.Vector.sub(desired, this.vel);
-      steer.limit(this.maxForce * 2);
-      this.applyForce(steer);
-
-      if (Snake.debug) {
-        push();
-        stroke(255, 0, 0);
-        strokeWeight(3);
-        noFill();
-        rect(bx + d, by + d, bw - d * 2, bh - d * 2);
-        pop();
-      }
+    // Debug visuel
+    if (Snake.debug && boundaryForce.mag() > 0) {
+      push();
+      stroke(255, 0, 0);
+      strokeWeight(3);
+      noFill();
+      rect(bx + d, by + d, bw - d * 2, bh - d * 2);
+      pop();
     }
 
     // Limiter strictement la position
     this.pos.x = constrain(this.pos.x, bx + 10, bx + bw - 10);
     this.pos.y = constrain(this.pos.y, by + 10, by + bh - 10);
+
+    // Retourner la force pour que les classes filles puissent l'utiliser
+    return boundaryForce;
   }
 
   // Afficher la tête et tous les segments

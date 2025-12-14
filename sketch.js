@@ -95,12 +95,45 @@ function initLevel(level) {
   // Configuration selon le niveau
   let config = getLevelConfig(level);
 
-  // Créer les obstacles normaux (verts) - taille réduite dans la zone de jeu
+  // Créer les obstacles normaux (verts) - avec validation de position
   for (let i = 0; i < config.normalObstacles; i++) {
-    let obs = new Obstacle(
-      random(gameArea.x + 60, gameArea.x + gameArea.width - 60),
-      random(gameArea.y + 60, gameArea.y + gameArea.height - 60),
-      random(12, 20), color(100, 255, 100), false);
+    let validPosition = false;
+    let x, y, radius;
+    let attempts = 0;
+    let maxAttempts = 100;
+
+    // Position du joueur (départ)
+    let playerStartX = gameArea.x + gameArea.width / 2;
+    let playerStartY = gameArea.y + gameArea.height / 2 + 100;
+
+    while (!validPosition && attempts < maxAttempts) {
+      x = random(gameArea.x + 60, gameArea.x + gameArea.width - 60);
+      y = random(gameArea.y + 60, gameArea.y + gameArea.height - 60);
+      radius = random(12, 20);
+      validPosition = true;
+
+      // Vérifier la distance avec le snake
+      if (snake && snake.segments) {
+        for (let segment of snake.segments) {
+          let d = dist(x, y, segment.pos.x, segment.pos.y);
+          let minDistance = radius + segment.r + 50;
+          if (d < minDistance) {
+            validPosition = false;
+            break;
+          }
+        }
+      }
+
+      // Vérifier distance avec position de départ du joueur
+      let distanceFromPlayer = dist(x, y, playerStartX, playerStartY);
+      if (distanceFromPlayer < radius + 80) {
+        validPosition = false;
+      }
+
+      attempts++;
+    }
+
+    let obs = new Obstacle(x, y, radius, color(100, 255, 100), false);
     obstacles.push(obs);
   }
 
@@ -289,7 +322,7 @@ function createDeadlyObstacles(count) {
 }
 
 function spawnFood() {
-  // Générer un point de nourriture qui ne chevauche pas les obstacles - UNIQUEMENT dans la zone de jeu
+  // Générer un point de nourriture qui ne chevauche pas les obstacles NI les snakes
   let maxAttempts = 50;
   let attempts = 0;
   let validPosition = false;
@@ -310,6 +343,36 @@ function spawnFood() {
       if (d < minDistance) {
         validPosition = false;
         break;
+      }
+    }
+
+    // Vérifier la distance avec le snake joueur (tête + segments)
+    if (validPosition && snake) {
+      let d = dist(x, y, snake.pos.x, snake.pos.y);
+      if (d < snake.r + 5 + 30) {
+        validPosition = false;
+      }
+
+      if (validPosition && snake.segments) {
+        for (let segment of snake.segments) {
+          let d = dist(x, y, segment.pos.x, segment.pos.y);
+          if (d < segment.r + 5 + 30) {
+            validPosition = false;
+            break;
+          }
+        }
+      }
+    }
+
+    // Vérifier la distance avec les AI snakes (petits et grands)
+    if (validPosition) {
+      let allAISnakes = [...smallSnakes, ...largeSnakes];
+      for (let aiSnake of allAISnakes) {
+        let d = dist(x, y, aiSnake.pos.x, aiSnake.pos.y);
+        if (d < aiSnake.r + 5 + 25) {
+          validPosition = false;
+          break;
+        }
       }
     }
 
@@ -432,7 +495,7 @@ function draw() {
   }
 
   // Mise à jour des paramètres
-  snake.maxSpeed = snakeSpeedSlider.value();
+  snake.normalMaxSpeed = snakeSpeedSlider.value();
   snake.segmentDistance = segmentDistanceSlider.value();
 
   // === MODE GAME ===
@@ -492,6 +555,9 @@ function draw() {
     snake.applyForce(avoidForce);
     snake.applyForce(separateForce);
 
+    // Mettre à jour la vitesse (restaurer si ralentissement terminé)
+    snake.updateSpeed();
+
     snake.update();
     snake.boundaries(gameArea.x, gameArea.y, gameArea.width, gameArea.height, 50); // Rebondit sur les bords
     snake.show();
@@ -527,8 +593,8 @@ function draw() {
     // Vérifier collision avec obstacles normaux (VERTS) - Ralentit mais pas de game over
     obstacles.forEach(obs => {
       if (snake.checkNormalObstacleCollision(obs)) {
-        // Le snake ralentit temporairement quand il touche un obstacle vert
-        snake.maxSpeed = max(snake.maxSpeed * 0.5, 2);
+        // Le snake ralentit temporairement quand il touche un obstacle vert (1 seconde à 60fps)
+        snake.applyTemporarySlowdown(60);
       }
     });
 
@@ -564,6 +630,10 @@ function draw() {
 
   // === MODE TEXT ===
   else if (mode === "text") {
+    // Dessiner les obstacles (pour contexte visuel)
+    obstacles.forEach(o => o.show());
+    deadlyObstacles.forEach(o => o.show());
+
     // Dessiner les points du texte
     push();
     fill(255, 0, 255);
@@ -583,6 +653,17 @@ function draw() {
       }
       segment.update();
       segment.show();
+    });
+
+    // Vérifier collision avec obstacles mortels (ROUGES) même en mode TEXTE - Game Over
+    deadlyObstacles.forEach(obs => {
+      // Vérifier collision avec tous les segments
+      allSegments.forEach(segment => {
+        let d = dist(segment.pos.x, segment.pos.y, obs.pos.x, obs.pos.y);
+        if (d < segment.r + obs.r + 2) {
+          gameOver = true;
+        }
+      });
     });
   }
 

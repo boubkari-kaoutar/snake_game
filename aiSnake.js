@@ -134,30 +134,10 @@ class AISnake extends Snake {
       }
     }
 
-    // Boundaries (priorité haute) - Utiliser la méthode de Vehicle qui retourne une force
-    let desired = null;
-    let d = 50;
-
-    if (this.pos.x < bounds.x + d) {
-      desired = createVector(this.maxSpeed, this.vel.y);
-    } else if (this.pos.x > bounds.x + bounds.width - d) {
-      desired = createVector(-this.maxSpeed, this.vel.y);
-    }
-
-    if (this.pos.y < bounds.y + d) {
-      desired = createVector(this.vel.x, this.maxSpeed);
-    } else if (this.pos.y > bounds.y + bounds.height - d) {
-      desired = createVector(this.vel.x, -this.maxSpeed);
-    }
-
-    if (desired !== null) {
-      desired.normalize();
-      desired.mult(this.maxSpeed);
-      let boundarySteer = p5.Vector.sub(desired, this.vel);
-      boundarySteer.limit(this.maxForce * 2);
-      boundarySteer.mult(2.0);
-      steerForce.add(boundarySteer);
-    }
+    // Boundaries (priorité haute) - Utiliser la méthode héritée de Vehicle
+    let boundaryForce = this.boundaries(bounds.x, bounds.y, bounds.width, bounds.height, 50);
+    boundaryForce.mult(2.0);  // Augmenter le poids pour priorité haute
+    steerForce.add(boundaryForce);
 
     // Appliquer les forces
     this.applyForce(steerForce);
